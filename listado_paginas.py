@@ -91,11 +91,12 @@ ruta = path.abspath(path.join(".","web"))
 list_csv = [path.join(ruta, file) for file in listdir(ruta) if '.csv' in file]
 for file in list_csv:
     try:
-        df = pd.read_csv(file, delimiter=",", keep_default_na=False)
+        print(f"Tratando archivo {file}")
+        df = pd.read_csv(file, delimiter=",")
         df = df.dropna()
-        df.to_csv(file, index=False)
+        df.to_csv(file, index=False)   
     except Exception as e:
-        print(f"Excepción en {file}: {e}")
+        print(f"Excepción en {file}: {e}")    
 
 
 
