@@ -102,8 +102,10 @@ if sw_corrige_csv:
 
 # Combina todos los archivos de la lista
 csv_unificado = pd.concat([pd.read_csv(f, delimiter=",") for f in list_csv])
-# Exporta a csv
-csv_unificado.to_csv( "combinado_csv.csv", index=False, encoding='utf-8-sig')
 
+# Eliminados filas duplicadas
+csv_unificado = csv_unificado.drop_duplicates()
+# Exporta a csv
+csv_unificado.to_csv( "demanda_energia_TF_5m.csv", index=False, encoding='utf-8-sig')
 
 
