@@ -27,6 +27,7 @@ url_base = "https://demanda.ree.es/visiona/canarias/tenerife5m/tablas/"
 start_date = datetime(2023, 2, 16)
 PLAZO = 15 # Finalización desde fecha de inicio en años
 end_date = start_date + relativedelta(days=PLAZO) # Uso de relativedelta en vez de timedelta, pues timedelta no admite years
+sw_corrige_csv = False  # Ejecuta o no el código de corrección de CSV (eliminación de Líneas con NaN)
 
 # Diferencia entre fecha de inicio y fecha de fin en días 
 dif_fechas = (end_date - start_date).days
@@ -89,16 +90,20 @@ print("[INFO] Descargados archivos CSV")
 # y no los voy a descargar de nuevo ;)
 ruta = path.abspath(path.join(".","web"))
 list_csv = [path.join(ruta, file) for file in listdir(ruta) if '.csv' in file]
-for file in list_csv:
-    try:
-        print(f"Tratando archivo {file}")
-        df = pd.read_csv(file, delimiter=",")
-        df = df.dropna()
-        df.to_csv(file, index=False)   
-    except Exception as e:
-        print(f"Excepción en {file}: {e}")    
+if sw_corrige_csv:
+    for file in list_csv:
+        try:
+            print(f"Tratando archivo {file}")
+            df = pd.read_csv(file, delimiter=",")
+            df = df.dropna()
+            df.to_csv(file, index=False)   
+        except Exception as e:
+            print(f"Excepción en {file}: {e}")    
 
-
+# Combina todos los archivos de la lista
+csv_unificado = pd.concat([pd.read_csv(f, delimiter=",") for f in list_csv])
+# Exporta a csv
+csv_unificado.to_csv( "combinado_csv.csv", index=False, encoding='utf-8-sig')
 
 
 
