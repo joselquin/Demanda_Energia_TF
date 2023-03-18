@@ -28,6 +28,7 @@ start_date = datetime(2023, 2, 16)
 PLAZO = 15 # Finalización desde fecha de inicio en años
 end_date = start_date + relativedelta(days=PLAZO) # Uso de relativedelta en vez de timedelta, pues timedelta no admite years
 sw_corrige_csv = False  # Ejecuta o no el código de corrección de CSV (eliminación de Líneas con NaN)
+sw_descarga = False # Ejecuta o no la parte de descarga de los datos
 
 # Diferencia entre fecha de inicio y fecha de fin en días 
 dif_fechas = (end_date - start_date).days
@@ -37,53 +38,56 @@ options = webdriver.ChromeOptions()
 options.add_argument("--headless") # No muestra el navegador que se abre
 
 # Recorre los días desde start_date a start_date + PLAZO
-for day in range(dif_fechas):
-    date = start_date + timedelta(days=day)
-    url = url_base + date.strftime('%Y-%m-%d') + "/1"
-    print(url)
+if sw_descarga:
+    for day in range(dif_fechas):
+        date = start_date + timedelta(days=day)
+        url = url_base + date.strftime('%Y-%m-%d') + "/1"
+        print(url)
 
-    # Define el nombre del archivo con el que vamos a grabar los datos
-    file_name = PurePath(url.split('/')[-2]).name + ".csv"
-    file_path = path.join(".","web", file_name)
+        # Define el nombre del archivo con el que vamos a grabar los datos
+        file_name = PurePath(url.split('/')[-2]).name + ".csv"
+        file_path = path.join(".","web", file_name)
 
-    # Si el archivo no existe, lo descarga
-    if not path.exists(file_path):
-    
-        # Hay que crear el driver cada vez que carguemos una página
-        driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options) 
-       
-        print(f"[INFO] Descargando archivo '{file_path}'")
-        driver.get(url) 
+        # Si el archivo no existe, lo descarga
+        if not path.exists(file_path):
+        
+            # Hay que crear el driver cada vez que carguemos una página
+            driver = webdriver.Chrome(service=ChromeService(ChromeDriverManager().install()), options=options) 
+        
+            print(f"[INFO] Descargando archivo '{file_path}'")
+            driver.get(url) 
 
-        # Descargamos la tabla de datos del día elegido, metiendo una espera hasta que se haya cargado la tabla
-        # Sin la espera, es fácil que aparezca un error al intentar obtener el objeto sin haberse terminado de generar la tabla
-        tabla_dia = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, 'tabla_evolucion')))
-        tabla_dia = tabla_dia.find_elements(By.XPATH, 'tbody/tr')
-        lista_temporal = []
+            # Descargamos la tabla de datos del día elegido, metiendo una espera hasta que se haya cargado la tabla
+            # Sin la espera, es fácil que aparezca un error al intentar obtener el objeto sin haberse terminado de generar la tabla
+            tabla_dia = WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.ID, 'tabla_evolucion')))
+            tabla_dia = tabla_dia.find_elements(By.XPATH, 'tbody/tr')
+            lista_temporal = []
 
-        # Ahora recogemos los datos de cada columna, registro por registro, hasta acabar la tabla
-        # Solo descargo fecha (fecha y hora) y consumo real (el resto no me interesa).
-        # El primer elemento son los títulos de la tabla, que debo obviar, así que recorro la lista por índices, 
-        # metiendo los datos que queremos en un diccionario
-        for num_registro in range(1, len(tabla_dia)):
-            registro = tabla_dia[num_registro]
+            # Ahora recogemos los datos de cada columna, registro por registro, hasta acabar la tabla
+            # Solo descargo fecha (fecha y hora) y consumo real (el resto no me interesa).
+            # El primer elemento son los títulos de la tabla, que debo obviar, así que recorro la lista por índices, 
+            # metiendo los datos que queremos en un diccionario
+            for num_registro in range(1, len(tabla_dia)):
+                registro = tabla_dia[num_registro]
 
-            datos = registro.find_elements(By.TAG_NAME, "td")
-            registro_dict = {
-                "fecha": datos[0].text,
-                "consumo": datos[1].text
-                }
-            # Añadimos cada registro a una tabla temporal, con las variables ya separadas en el diccionario
-            lista_temporal.append(registro_dict)
+                datos = registro.find_elements(By.TAG_NAME, "td")
+                registro_dict = {
+                    "fecha": datos[0].text,
+                    "consumo": datos[1].text
+                    }
+                # Añadimos cada registro a una tabla temporal, con las variables ya separadas en el diccionario
+                lista_temporal.append(registro_dict)
 
-        # Convertimos la lista en Dataframe para exportar a CSV (1 CSV por día)
-        data = pd.DataFrame(lista_temporal)
-        data.to_csv(file_path, index=False)
-        driver.close
-    else:
-        print(f"[INFO] Archivo '{file_path}' ya existe")
-    
-print("[INFO] Descargados archivos CSV")
+            # Convertimos la lista en Dataframe para exportar a CSV (1 CSV por día)
+            data = pd.DataFrame(lista_temporal)
+            data.to_csv(file_path, index=False)
+            driver.close
+        else:
+            print(f"[INFO] Archivo '{file_path}' ya existe")
+    print("[INFO] Descargados archivos CSV")
+else:
+    print("Saltando descargas")   
+
 
 # Borra los ejemplos con alguna columna vacía
 # Lo suyo es hacer esto en el momento de descargar los CSV al principio, pero no lo hice entonces 
@@ -99,13 +103,14 @@ if sw_corrige_csv:
             df.to_csv(file, index=False)   
         except Exception as e:
             print(f"Excepción en {file}: {e}")    
+else:
+    print("Saltando corrección")
 
 # Combina todos los archivos de la lista
 csv_unificado = pd.concat([pd.read_csv(f, delimiter=",") for f in list_csv])
+csv_unificado.info()
 
-# Eliminados filas duplicadas
-csv_unificado = csv_unificado.drop_duplicates()
 # Exporta a csv
 csv_unificado.to_csv( "demanda_energia_TF_5m.csv", index=False, encoding='utf-8-sig')
-
+print("Creado CSV unificado")
 

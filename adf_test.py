@@ -3,6 +3,7 @@
 # (c) Pierian Data  - www.pieriandata.com
 
 from statsmodels.tsa.stattools import adfuller
+import pandas as pd
 
 def adf_test(series):
     
